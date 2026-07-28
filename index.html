@@ -1126,8 +1126,10 @@ function setupPWA(){
   link.href='data:application/json;base64,'+btoa(unescape(encodeURIComponent(JSON.stringify(manifest))));
   document.head.appendChild(link);
 
-  // NO service worker on file:// — it breaks Chrome's "Add to Home Screen"
-  // The app already works offline (single file, localStorage)
+  // Service worker (required for PWA install on HTTPS)
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  }
 
   const banner=document.getElementById('install-banner');
   const bannerText=document.getElementById('install-banner-text');
