@@ -1130,18 +1130,67 @@ function setupPWA(){
   const bannerText=document.getElementById('install-banner-text');
   if(!bannerText)return;
   if(window.matchMedia('(display-mode: standalone)').matches){banner.style.display='none';return}
-  const isIOS=/iPhone|iPad|iPod/.test(navigator.userAgent);
-  bannerText.innerHTML=isIOS
-    ?'📱 点击 Safari <b>分享</b> → <b>添加到主屏幕</b>'
-    :'📱 点击浏览器菜单 ⋮ → <b>添加到主屏幕</b>';
-  banner.style.display='block';banner.style.cursor='pointer';
-  banner.addEventListener('click',()=>{banner.style.display='none'});
-  setTimeout(()=>{banner.style.display='none'},10000);
 
-  // Try native prompt (works when hosted on HTTPS server)
-  window.addEventListener('beforeinstallprompt',e=>{
-    e.preventDefault();bannerText.innerHTML='📱 <b>点击这里</b>一键添加到桌面！';
-    banner.style.display='block';banner.onclick=()=>{e.prompt();banner.style.display='none'};
+  let deferredPrompt=null;
+  const isIOS=/iPhone|iPad|iPod/.test(navigator.userAgent);
+
+  function updateBannerText(){
+    if(deferredPrompt){
+      bannerText.innerHTML='📱 <b>点击这里</b>一键添加到桌面！';
+    }else if(isIOS){
+      bannerText.innerHTML='📱 点 Safari <b>分享</b> → <b>添加到主屏幕</b>';
+    }else{
+      bannerText.innerHTML='📱 点浏览器菜单 <b>⋮</b> → <b>添加到主屏幕</b>';
+    }
+  }
+
+  updateBannerText();
+  banner.style.display='block';
+  banner.style.cursor='pointer';
+
+  banner.onclick=function(){
+    if(deferredPrompt){
+      deferredPrompt.prompt().then(function(result){
+        if(result.outcome==='accepted') banner.style.display='none';
+        deferredPrompt=null;
+        updateBannerText();
+      }).catch(function(){
+        deferredPrompt=null;
+        showInstallGuide();
+      });
+    }else{
+      showInstallGuide();
+    }
+  };
+
+  function showInstallGuide(){
+    let html='<h3>📱 添加到手机桌面</h3>';
+    if(isIOS){
+      html+=`
+        <div style="text-align:center;font-size:2.5rem;margin:10px 0">📋 → ＋</div>
+        <ol style="line-height:2.2;font-size:.85rem;padding-left:20px">
+          <li>点 Safari 底部的<b>分享按钮</b>（方框+箭头）</li>
+          <li>往下滑，找到 <b>「添加到主屏幕」</b></li>
+          <li>点右上角 <b>「添加」</b></li>
+        </ol>`;
+    }else{
+      html+=`
+        <div style="text-align:center;font-size:2.5rem;margin:10px 0">⋮ → ＋</div>
+        <ol style="line-height:2.2;font-size:.85rem;padding-left:20px">
+          <li>点浏览器右上角 <b>⋮ 菜单</b></li>
+          <li>选择 <b>「添加到主屏幕」</b></li>
+          <li>点 <b>「添加」</b> 确认</li>
+        </ol>`;
+    }
+    html+='<button class="btn btn-outline btn-sm" style="width:100%;margin-top:12px" onclick="closeModal()">知道了</button>';
+    showModal(html);
+  }
+
+  window.addEventListener('beforeinstallprompt',function(e){
+    e.preventDefault();
+    deferredPrompt=e;
+    updateBannerText();
+    banner.style.display='block';
   });
 }
 
