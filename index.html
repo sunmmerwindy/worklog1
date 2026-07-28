@@ -11,6 +11,7 @@
 <meta name="description" content="轻松记录每一天，镜子不是尺子">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>">
 <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23faf8f5'/><text y='.8em' font-size='80' text-anchor='middle' x='50'>🌿</text></svg>">
+<link rel="manifest" href="manifest.json">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -1117,11 +1118,7 @@ function roundRect(ctx,x,y,w,h,r){
 
 // ==================== PWA ====================
 function setupPWA(){
-  // Manifest link
-  const ml=document.createElement('link');ml.rel='manifest';ml.href='manifest.json';
-  document.head.appendChild(ml);
-
-  // Service worker (required for PWA install on Chrome)
+  // Service worker (for Chrome PWA install)
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').catch(()=>{});
   }
@@ -1132,15 +1129,28 @@ function setupPWA(){
   if(window.matchMedia('(display-mode: standalone)').matches){banner.style.display='none';return}
 
   let deferredPrompt=null;
-  const isIOS=/iPhone|iPad|iPod/.test(navigator.userAgent);
+  const ua=navigator.userAgent;
+  const isIOS=/iPhone|iPad|iPod/.test(ua);
+
+  function detectBrowser(){
+    if(isIOS)return 'safari';
+    if(/MicroMessenger/i.test(ua))return 'wechat';
+    if(/MQQBrowser/i.test(ua)||/QQ\//i.test(ua))return 'qq';
+    if(/UCBrowser/i.test(ua)||/UCWEB/i.test(ua))return 'uc';
+    if(/MiuiBrowser/i.test(ua))return 'xiaomi';
+    if(/SamsungBrowser/i.test(ua))return 'samsung';
+    if(/EdgA?\//i.test(ua)||/Edge\//i.test(ua))return 'edge';
+    if(/Chrome\//i.test(ua))return 'chrome';
+    return 'other';
+  }
+
+  const browser=detectBrowser();
 
   function updateBannerText(){
     if(deferredPrompt){
-      bannerText.innerHTML='📱 <b>点击这里</b>一键添加到桌面！';
-    }else if(isIOS){
-      bannerText.innerHTML='📱 点 Safari <b>分享</b> → <b>添加到主屏幕</b>';
+      bannerText.innerHTML='📱 <b>点这里</b>一键添加到桌面！';
     }else{
-      bannerText.innerHTML='📱 点浏览器菜单 <b>⋮</b> → <b>添加到主屏幕</b>';
+      bannerText.innerHTML='📱 点这里 <b>查看添加到桌面的方法</b>';
     }
   }
 
@@ -1151,7 +1161,7 @@ function setupPWA(){
   banner.onclick=function(){
     if(deferredPrompt){
       deferredPrompt.prompt().then(function(result){
-        if(result.outcome==='accepted') banner.style.display='none';
+        if(result.outcome==='accepted')banner.style.display='none';
         deferredPrompt=null;
         updateBannerText();
       }).catch(function(){
@@ -1164,25 +1174,25 @@ function setupPWA(){
   };
 
   function showInstallGuide(){
-    let html='<h3>📱 添加到手机桌面</h3>';
-    if(isIOS){
-      html+=`
-        <div style="text-align:center;font-size:2.5rem;margin:10px 0">📋 → ＋</div>
-        <ol style="line-height:2.2;font-size:.85rem;padding-left:20px">
-          <li>点 Safari 底部的<b>分享按钮</b>（方框+箭头）</li>
-          <li>往下滑，找到 <b>「添加到主屏幕」</b></li>
-          <li>点右上角 <b>「添加」</b></li>
-        </ol>`;
-    }else{
-      html+=`
-        <div style="text-align:center;font-size:2.5rem;margin:10px 0">⋮ → ＋</div>
-        <ol style="line-height:2.2;font-size:.85rem;padding-left:20px">
-          <li>点浏览器右上角 <b>⋮ 菜单</b></li>
-          <li>选择 <b>「添加到主屏幕」</b></li>
-          <li>点 <b>「添加」</b> 确认</li>
-        </ol>`;
-    }
-    html+='<button class="btn btn-outline btn-sm" style="width:100%;margin-top:12px" onclick="closeModal()">知道了</button>';
+    var guides={
+      safari:  {name:'Safari',menu:'分享按钮 ↑',steps:['点底部中间的<b>分享按钮</b>（方框 + 箭头）','往下滑找到<b>「添加到主屏幕」</b>','点右上角<b>「添加」</b>']},
+      chrome:  {name:'Chrome',menu:'⋮',steps:['点右上角 <b>⋮</b>','选择<b>「添加到主屏幕」</b>','点<b>「添加」</b>确认']},
+      edge:    {name:'Edge',menu:'☰',steps:['点底部 <b>☰</b>','选择<b>「添加到手机」</b>','点<b>「添加」</b>']},
+      xiaomi:  {name:'小米浏览器',menu:'☰',steps:['点底部中间 <b>☰</b>','找到<b>「添加到桌面」</b>（可能在"更多"里）','确认添加']},
+      wechat:  {name:'微信',menu:'⋯',steps:['点右上角 <b>⋯</b>','选择<b>「在浏览器中打开」</b>','然后在浏览器菜单中添加到桌面']},
+      qq:      {name:'QQ浏览器',menu:'☰',steps:['点菜单 <b>☰</b> 或 <b>⋯</b>','找到<b>「添加到桌面」</b>','确认添加']},
+      uc:      {name:'UC浏览器',menu:'☰',steps:['点底部 <b>☰</b>','找到<b>「添加到桌面」</b>','确认添加']},
+      samsung: {name:'三星浏览器',menu:'☰',steps:['点菜单 <b>☰</b>','选择<b>「添加至主屏幕」</b>','点<b>「添加」</b>']},
+      other:   {name:'浏览器',menu:'☰ 或 ⋮',steps:['打开浏览器的<b>菜单</b>','找到<b>「添加到桌面/主屏幕」</b>','确认添加']}
+    };
+    var g=guides[browser]||guides.other;
+
+    var html='<h3>📱 添加到手机桌面 — '+g.name+'</h3>';
+    html+='<ol style="line-height:2.2;font-size:.85rem;padding-left:20px;margin:8px 0">';
+    for(var i=0;i<g.steps.length;i++)html+='<li>'+g.steps[i]+'</li>';
+    html+='</ol>';
+    html+='<p style="font-size:.72rem;color:var(--muted);margin:8px 0">💡 每个浏览器菜单里都有这个功能，只是位置不太一样</p>';
+    html+='<button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px" onclick="closeModal()">知道了</button>';
     showModal(html);
   }
 
